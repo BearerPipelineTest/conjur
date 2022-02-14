@@ -12,7 +12,7 @@ There are two ways to do this:
 
 1. (most common) Temporarily edit the Jenkinsfile.  You'll need to undo your
    change when your PR is ready for review.  Simply edit the default value of
-   the 'RUN_ONLY' parameter (defined in the parameters block below) to a 
+   the 'RUN_ONLY' parameter (defined in the parameters block below) to a
    space-separated list consisting of test names from the list below.
 
 2. Re-run the same code (perhaps because of a flaky test) directly in Jenkins.
@@ -45,6 +45,34 @@ These are defined in runConjurTests, and also include the one-offs
     gcp_authenticator
 */
 
+// Automated release, promotion and dependencies
+properties([
+  // Include the automated release parameters for the build
+  release.addParams(),
+  // Dependencies of the project that should trigger builds
+  dependencies(['cyberark/conjur-base-image',
+                'cyberark/conjur-api-ruby',
+                'conjurinc/debify'])
+])
+
+// Performs release promotion.  No other stages will be run
+if (params.MODE == "PROMOTE") {
+  release.promote(params.VERSION_TO_PROMOTE) { sourceVersion, targetVersion, assetDirectory ->
+    sh "docker pull registry.tld/conjur:${sourceVersion}"
+    sh "docker pull registry.tld/conjur-ubi:${sourceVersion}"
+    sh "summon -f ./secrets.yml ./publish-images.sh --promote --redhat --base-version=${sourceVersion} --version=${targetVersion}"
+
+    // Trigger Conjurops build to push newly promoted releases of conjur to ConjurOps Staging
+    build(
+      job:'../conjurinc--conjurops/master',
+      parameters:[
+        string(name: 'conjur_oss_source_image', value: "cyberark/conjur:${targetVersion}")
+      ],
+      wait: false
+    )
+  }
+  return
+}
 
 pipeline {
   agent { label 'executor-v2' }
@@ -79,9 +107,42 @@ pipeline {
       // development.
       defaultValue: ''
     )
+    string(
+      name: 'CUCUMBER_FILTER_TAGS',
+      description: 'Filter which cucumber tags will run (e.g. "not @performance")',
+      defaultValue: defaultCucumberFilterTags(env)
+    )
+
+  }
+
+  environment {
+    // Sets the MODE to the specified or autocalculated value as appropriate
+    MODE = release.canonicalizeMode()
   }
 
   stages {
+    // Aborts any builds triggered by another project that wouldn't include any changes
+    stage ("Skip build if triggering job didn't create a release") {
+      when {
+        expression {
+          MODE == "SKIP"
+        }
+      }
+      steps {
+        script {
+          currentBuild.result = 'ABORTED'
+          error("Aborting build because this build was triggered from upstream, but no release was built")
+        }
+      }
+    }
+    // Generates a VERSION file based on the current build number and latest version in CHANGELOG.md
+    stage('Validate Changelog and set version') {
+      steps {
+        updateVersion("CHANGELOG.md", "${BUILD_NUMBER}")
+        stash name: 'version_info', includes: 'VERSION'
+      }
+    }
+
     stage('Fetch tags') {
       steps {
         withCredentials(
@@ -153,7 +214,7 @@ pipeline {
           steps {
             // Push images to the internal registry so that they can be used
             // by tests, even if the tests run on a different executor.
-            sh './push-image.sh --registry-prefix=registry.tld'
+            sh './publish-images.sh --internal'
           }
         }
 
@@ -207,11 +268,16 @@ pipeline {
             expression { params.NIGHTLY }
           }
 
+          environment {
+            CUCUMBER_FILTER_TAGS = "${params.CUCUMBER_FILTER_TAGS}"
+          }
+
           stages {
             stage('EE FIPS agent tests') {
               agent { label 'executor-v2-rhel-ee' }
 
               steps {
+                unstash 'version_info'
                 // Catch errors so remaining steps always run.
                 catchError {
                   runConjurTests(params.RUN_ONLY)
@@ -275,6 +341,10 @@ pipeline {
         stage('Run environment tests in parallel') {
           parallel {
             stage('Standard agent tests') {
+              environment {
+                CUCUMBER_FILTER_TAGS = "${params.CUCUMBER_FILTER_TAGS}"
+              }
+
               steps {
                 runConjurTests(params.RUN_ONLY)
               }
@@ -304,6 +374,11 @@ pipeline {
               }
 
               steps {
+                unstash 'version_info'
+                // Grant access to this Jenkins agent's IP to AWS security groups
+                // This is required for access to the internal docker registry
+                // from outside EC2.
+                grantIPAccess()
                 sh(
                   'summon -f ci/test_suites/authenticators_azure/secrets.yml ' +
                     'ci/test authenticators_azure'
@@ -321,6 +396,10 @@ pipeline {
                         cucumber_results*.json
                       '''
                     )
+                    // Remove this Agent's IP from IPManager's prefix list
+                    // There are a limited number of entries, so it remove it
+                    // rather than waiting for it to expire.
+                    removeIPAccess()
                 }
               }
             }
@@ -509,7 +588,7 @@ pipeline {
           }
         }
       }
-      
+
       post {
         success {
           script {
@@ -550,6 +629,7 @@ pipeline {
                 authenticators_jwt/cucumber_results.html,
                 authenticators_gcp/cucumber_results.html,
                 authenticators_status/cucumber_results.html,
+                kubernetes/cucumber_results.html,
                 policy/cucumber_results.html,
                 rotators/cucumber_results.html
               ''',
@@ -599,66 +679,28 @@ pipeline {
       }
     }
 
-    stage('Publish images') {
-      parallel {
-        stage('On a new tag') {
-          when {
-            // Only run this stage when it's a tag build matching vA.B.C
-            tag(
-              pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+\$",
-              comparator: "REGEXP"
-            )
-          }
-
-          steps {
-            sh 'summon -f ./secrets.yml ./push-image.sh'
-            // Trigger Conjurops build to push new releases of conjur to ConjurOps Staging
-            build(
-              job:'../conjurinc--conjurops/master',
-              parameters:[
-                string(name: 'conjur_oss_source_image', value: "cyberark/conjur:${TAG_NAME}")
-              ],
-              wait: false
-            )
-          }
-        }
-
-        stage('On a master build') {
-          when { environment name: 'JOB_NAME', value: 'cyberark--conjur/master' }
-          steps {
-            script {
-              def tasks = [:]
-              tasks["Publish edge to local registry"] = {
-                sh './push-image.sh --edge --registry-prefix=registry.tld'
-              }
-              tasks["Publish edge to DockerHub"] = {
-                sh './push-image.sh --edge'
-              }
-              parallel tasks
-            }
-          }
+    stage("Release Conjur images and packages") {
+      when {
+        expression {
+          MODE == "RELEASE"
         }
       }
-    }
-
-    stage('Build Debian and RPM packages') {
-      when {
-        expression { params.RUN_ONLY == '' }
-      }
       steps {
-        sh 'echo "CONJUR_VERSION=5" >> debify.env'
-        sh './package.sh'
-        archiveArtifacts artifacts: '*.deb', fingerprint: true
-        archiveArtifacts artifacts: '*.rpm', fingerprint: true
-      }
-    }
+        release { billOfMaterialsDirectory, assetDirectory ->
+          // Publish docker images
+          sh './publish-images.sh --edge --dockerhub'
 
-    stage('Publish Debian and RPM packages'){
-      when {
-        expression { params.RUN_ONLY == '' }
-      }
-      steps {
-        sh './publish.sh'
+          // Create deb and rpm packages
+          sh 'echo "CONJUR_VERSION=5" >> debify.env'
+          sh './package.sh'
+          archiveArtifacts artifacts: '*.deb', fingerprint: true
+          archiveArtifacts artifacts: '*.rpm', fingerprint: true
+          sh "cp *.rpm ${assetDirectory}/."
+          sh "cp *.deb ${assetDirectory}/."
+
+          // Publish deb and rpm packages
+          sh './publish.sh'
+        }
       }
     }
   }
@@ -787,4 +829,15 @@ def runConjurTests(run_only_str) {
       parallel_tests.values().sum()
     )
   }
+}
+
+def defaultCucumberFilterTags(env) {
+  if(env.BRANCH_NAME == 'master' || env.TAG_NAME?.trim()) {
+    // If this is a master or tag build, we want to run all of the tests. So
+    // we use an empty filter string.
+    return ''
+  }
+
+  // For all other branch builds, only run the @smoke tests by default
+  return '@smoke'
 }

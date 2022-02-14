@@ -408,11 +408,6 @@ module Errors
         code: "CONJ00085E"
       )
 
-      InvalidUriConfiguration = ::Util::TrackableErrorClass.new(
-        msg: "Signing key URI configuration is invalid",
-        code: "CONJ00086E"
-      )
-
       FetchJwksKeysFailed = ::Util::TrackableErrorClass.new(
         msg: "Failed to fetch JWKS from '{0-uri}'. Reason: '{1}'",
         code: "CONJ00087E"
@@ -448,19 +443,9 @@ module Errors
         code: "CONJ00093E"
       )
 
-      MissingHttpResponse = ::Util::TrackableErrorClass.new(
-        msg: "HTTP response is empty or not found.",
-        code: "CONJ00094E"
-      )
-
       MissingClaim = ::Util::TrackableErrorClass.new(
         msg: "Claim is empty or not found.",
         code: "CONJ00095E"
-      )
-
-      InvalidHttpResponseFormat = ::Util::TrackableErrorClass.new(
-        msg: "HTTP response format is invalid",
-        code: "CONJ00096E"
       )
 
       ServiceIdMissing = ::Util::TrackableErrorClass.new(
@@ -577,6 +562,26 @@ module Errors
       InvalidRestrictionName = ::Util::TrackableErrorClass.new(
         msg: "Restriction '{0-restriction-name}' is invalid and not representing claim path in the token",
         code: "CONJ00119E"
+      )
+
+      InvalidPublicKeys = ::Util::TrackableErrorClass.new(
+        msg: "Failed to parse 'public-keys': {0-parse-error}",
+        code: "CONJ00120E"
+      )
+
+      InvalidSigningKeyType = ::Util::TrackableErrorClass.new(
+        msg: "Signing key type '{0-type}' is invalid",
+        code: "CONJ00121E"
+      )
+
+      InvalidSigningKeySettings = ::Util::TrackableErrorClass.new(
+        msg: "Invalid signing key settings: {0-validation-error}",
+        code: "CONJ00122E"
+      )
+
+      FailedToFetchJwksData = ::Util::TrackableErrorClass.new(
+        msg: "Failed to fetch JWKS data from '{0-jwks-uri}' with error: {1-error}",
+        code: "CONJ00123E"
       )
     end
 

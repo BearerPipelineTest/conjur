@@ -1,4 +1,4 @@
-FROM cyberark/ubuntu-ruby-fips:1.0.6
+FROM cyberark/ubuntu-ruby-fips:latest
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PORT=80 \
@@ -36,6 +36,9 @@ COPY gems/ gems/
 RUN bundle --without test development
 
 COPY . .
+
+# removing CA bundle of httpclient gem
+RUN find / -name httpclient -type d -exec find {} -name *.pem -type f -delete \;
 
 RUN ln -sf /opt/conjur-server/bin/conjurctl /usr/local/bin/
 

@@ -1,5 +1,5 @@
 # Conjur Base Image (UBI)
-FROM cyberark/ubi-ruby-fips:1.0.6
+FROM cyberark/ubi-ruby-fips:latest
 
 EXPOSE 8080
 ARG VERSION
@@ -70,6 +70,9 @@ COPY gems/ gems/
 RUN bundle --without test development
 
 COPY . .
+
+# removing CA bundle of httpclient gem
+RUN find / -name httpclient -type d -exec find {} -name *.pem -type f -delete \;
 
 RUN ln -sf /opt/conjur-server/bin/conjurctl /usr/local/bin/
 

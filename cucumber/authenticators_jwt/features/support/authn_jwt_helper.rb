@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 
-require 'cucumber/authenticators_oidc/features/support/authn_oidc_helper'
-
 # Utility methods for JWT authenticator
 module AuthnJwtHelper
-  include AuthenticatorHelpers
 
   ACCOUNT = 'cucumber'
   DEFAULT_SERVICE_ID = 'raw'
@@ -41,6 +38,17 @@ module AuthnJwtHelper
   def create_jwt_secret(variable_name:, value:, service_id: DEFAULT_SERVICE_ID)
     path = "#{ACCOUNT}:variable:conjur/authn-jwt/#{service_id}"
     Secret.create(resource_id: "#{path}/#{variable_name}", value: value)
+  end
+
+  def create_public_keys_from_response_body(type: "jwks")
+    public_keys = {
+      "type" => type,
+      "value" => JSON.parse(@response_body)
+    }
+    create_jwt_secret(
+      variable_name: "public-keys",
+      value: JSON.dump(public_keys)
+    )
   end
 
 end

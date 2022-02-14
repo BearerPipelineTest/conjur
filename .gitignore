@@ -23,6 +23,7 @@ engines/conjur_audit/spec/dummy/log
 data_key
 dhparam.pem
 *.deb
+*.rpm
 .byebug_history
 config/database.yml
 reports
@@ -33,6 +34,8 @@ demo/run/load
 coverage
 .DS_Store
 demo/run/*.yml
+container_logs
+cucumber/*/*_results.*
 
 apidocs/node_modules
 *.config
@@ -66,3 +69,5 @@ gems/*/Gemfile.lock
 
 # Container commit marker
 conjur_git_commit
+
+VERSION

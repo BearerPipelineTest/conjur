@@ -1,4 +1,4 @@
-FROM cyberark/phusion-ruby-fips:1.0.6
+FROM cyberark/phusion-ruby-fips:latest
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
     build-essential \
@@ -27,6 +27,9 @@ COPY Gemfile \
 COPY gems/ gems/
 
 RUN bundle
+
+# removing CA bundle of httpclient gem
+RUN find / -name httpclient -type d -exec find {} -name *.pem -type f -delete \;
 
 RUN rm /etc/service/sshd/down
 RUN ln -sf /src/conjur-server/bin/conjurctl /usr/local/bin/

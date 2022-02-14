@@ -3,16 +3,6 @@ module Authentication
 
     ValidateStatus = CommandClass.new(
       dependencies: {
-        fetch_signing_key: ::Util::ConcurrencyLimitedCache.new(
-          ::Util::RateLimitedCache.new(
-            ::Authentication::AuthnJwt::SigningKey::FetchCachedSigningKey.new,
-            refreshes_per_interval: CACHE_REFRESHES_PER_INTERVAL,
-            rate_limit_interval: CACHE_RATE_LIMIT_INTERVAL,
-            logger: Rails.logger
-          ),
-          max_concurrent_requests: CACHE_MAX_CONCURRENT_REQUESTS,
-          logger: Rails.logger
-        ),
         create_signing_key_provider: Authentication::AuthnJwt::SigningKey::CreateSigningKeyProvider.new,
         fetch_issuer_value: Authentication::AuthnJwt::ValidateAndDecode::FetchIssuerValue.new,
         fetch_audience_value: Authentication::AuthnJwt::ValidateAndDecode::FetchAudienceValue.new,
@@ -36,12 +26,12 @@ module Authentication
       def call
         @logger.info(LogMessages::Authentication::AuthnJwt::ValidatingJwtStatusConfiguration.new)
         validate_generic_status_validations
+        validate_signing_key
         validate_issuer
         validate_audience
         validate_enforced_claims
         validate_claim_aliases
         validate_identity_secrets
-        validate_signing_key
         @logger.info(LogMessages::Authentication::AuthnJwt::ValidatedJwtStatusConfiguration.new)
       end
 
@@ -150,9 +140,8 @@ module Authentication
       end
 
       def validate_signing_key
-        @fetch_signing_key.call(
-          cache_key: signing_key_provider.signing_key_uri,
-          signing_key_provider: signing_key_provider
+        signing_key_provider.call(
+          force_fetch: false
         )
         @logger.debug(LogMessages::Authentication::AuthnJwt::ValidatedSigningKeyConfiguration.new)
       end

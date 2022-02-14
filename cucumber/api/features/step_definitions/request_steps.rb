@@ -98,7 +98,16 @@ end
 # "/authn/cucumber/alice/authenticate" with no Content-Type and body ":cucumber:user:alice_api_key"
 # And
 When(/I can authenticate Alice with no Content-Type header/) do
-  headers['Content-Type'] = nil
+  try_request true do
+    post_json(
+      "/authn/cucumber/alice/authenticate",
+      ":cucumber:user:alice_api_key"
+    )
+  end
+end
+
+When(/^I can authenticate Alice when Content-Type header has value "([^"]*)"$/) do |value|
+  headers['Content-Type'] = value
   try_request true do
     post_json(
       "/authn/cucumber/alice/authenticate",
@@ -124,9 +133,13 @@ When(/^I( (?:successfully|can))? authenticate Alice (?:(\d+) times? in (\d+) thr
   )
 end
 
-When(/^I( (?:can|successfully))? POST "([^"]*)" with body:$/) do |can, path, body|
-  try_request can do
-    post_json path, body
+When(/^I( (?:can|successfully))? POST(( \d+) times)? "([^"]*)" with body:$/) do |can, requests_num, path, body|
+  requests_num ||= 1
+
+  (1..requests_num.to_i).each do
+    try_request can do
+      post_json path, body
+    end
   end
 end
 

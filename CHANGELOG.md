@@ -5,6 +5,81 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Nothing should go in this section, please add to the latest unreleased version
+  (and update the corresponding date), or add a new version.
+
+## [1.17.2] - 2022-02-13
+
+### Fixed
+- IAM Authn bug fix - Take rexml gem to production configuration [#2493](https://github.com/cyberark/conjur/pull/2493)
+
+### Security
+- Updated Rails to 6.1.4.4 to resolve CVE-2021-44528 (Medium, Not Vulnerable)
+  [cyberark/conjur#2486](https://github.com/cyberark/conjur/pull/2486)
+- Updated Rails to 6.1.4.6 to resolve CVE-2022-23633
+  Updated Puma to 5.6.2 to resolve CVE-2022-23634
+  [cyberark/conjur#2492](https://github.com/cyberark/conjur/pull/2492)  
+
+## [1.17.1] - 2022-02-09
+
+### Added
+- Added support for SNI certificates when talking to the Kubernetes API 
+  server through the web socket client.
+  [ONYX-14386](https://ca-il-jira.il.cyber-ark.com:8443/browse/ONYX-14386)
+- Added support for http(s)_proxy for Kubernetes client in Kubernetes
+  authenticator
+  [ONYX-16433](https://ca-il-jira.il.cyber-ark.com:8443/browse/ONYX-16433)
+
+## [1.17.0] - 2022-02-09
+
+### Changed
+- Upgrade to Ruby 3. [#2444](https://github.com/cyberark/conjur/pull/2444)
+
+## [1.16.0] - 2022-01-25
+
+### Added
+- Added the ability to fetch signing keys from JWKS endpoints that use a self-signed
+  certificate or a certificate signed by a third-party CA for JWT generic vendor
+  configuration
+  ([#2462](https://github.com/cyberark/conjur/pull/2462)
+  [#2461](https://github.com/cyberark/conjur/pull/2461)
+  [#2456](https://github.com/cyberark/conjur/pull/2456)
+  [#2455](https://github.com/cyberark/conjur/pull/2455)
+  [#2457](https://github.com/cyberark/conjur/pull/2457)
+  [#2452](https://github.com/cyberark/conjur/pull/2452)
+  [#2437](https://github.com/cyberark/conjur/pull/2437))
+- Added the ability for JWT generic vendor configuration to receive signing keys
+  for JWT token verification from a variable. Variable name is `public-keys`
+  ([#2463](https://github.com/cyberark/conjur/pull/2463)
+  [#2461](https://github.com/cyberark/conjur/pull/2461)
+  [#2456](https://github.com/cyberark/conjur/pull/2456)
+  [#2455](https://github.com/cyberark/conjur/pull/2455)
+  [#2454](https://github.com/cyberark/conjur/pull/2454)
+  [#2450](https://github.com/cyberark/conjur/pull/2450)
+  [#2447](https://github.com/cyberark/conjur/pull/2447)
+  [#2437](https://github.com/cyberark/conjur/pull/2437))
+
+### Changed
+- Proper error message appears when JWT Authenticator gets HTTP code error
+  while trying to fetch JWKS data from `jwks-uri` [#2474](https://github.com/cyberark/conjur/pull/2474)
+
+## [1.15.1] - 2022-01-12
+
+### Changed
+- Update to automated release process
+
+## [1.15.0] - 2021-12-21
+
+### Added
+- Added API endpoint to enable and disable GCP authenticator
+  [#2448](https://github.com/cyberark/conjur/pull/2448)
+
+### Fixed
+- Check to stop hosts from setting passwords fixed for admin user
+  [#2440](https://github.com/cyberark/conjur/pull/2440)
+
+## [1.14.2] - 2021-12-13
 
 ### Changed
 - Failed Login now writes the error code in the log
@@ -19,6 +94,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   [#1990](https://github.com/cyberark/conjur/issues/1990)
 - Added check to stop hosts from setting passwords 
   [#1920](https://github/cyberark/conjur/issues/1920)
+
+### Security
+- Bump gems related to openid_connect stack for improving the certificate
+  validation procedure during the OIDC keys discovery process
+  [#2441](https://github.com/cyberark/conjur/pull/2441)
 
 ## [1.14.1] - 2021-11-05
 
@@ -745,7 +825,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - The first tagged version.
 
-[Unreleased]: https://github.com/cyberark/conjur/compare/v1.14.1...HEAD
+[Unreleased]: https://github.com/cyberark/conjur/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/cyberark/conjur/compare/v1.15.0...v1.16.0
+[1.15.0]: https://github.com/cyberark/conjur/compare/v1.14.2...v1.15.0
+[1.14.2]: https://github.com/cyberark/conjur/compare/v1.14.1...v1.14.2
 [1.14.1]: https://github.com/cyberark/conjur/compare/v1.14.0...v1.14.1
 [1.14.0]: https://github.com/cyberark/conjur/compare/v1.13.2...v1.14.0
 [1.13.2]: https://github.com/cyberark/conjur/compare/v1.13.1...v1.13.2
