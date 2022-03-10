@@ -1,5 +1,6 @@
 require 'prometheus/client'
 require 'prometheus/client/data_stores/direct_file_store'
+require 'monitoring/pub_sub'
 
 module Monitoring
   module Prometheus
@@ -41,6 +42,21 @@ module Monitoring
       # Test a random gauge metric
       gauge = registry.gauge(:test_gauge, docstring: '...', labels: [:test_label])
       gauge.set(1234.567, labels: { test_label: 'gauge metric test' })
+
+      # Test for pub/sub-based, collector-triggered metric updates
+      PubSub.unsubscribe("collector_test_metric")
+      request_counter = registry.counter(
+        :collector_test_metric,
+        docstring: '...',
+        labels: [:code, :path]
+      )
+      PubSub.subscribe("collector_test_metric") do |payload|
+        labels = {
+          code: payload[:code],
+          path: payload[:path]
+        }
+        request_counter.increment(labels: labels)
+      end
     end
 
   end

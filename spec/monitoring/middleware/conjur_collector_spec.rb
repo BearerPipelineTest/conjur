@@ -1,8 +1,8 @@
 require 'spec_helper'
 require 'rack/test'
+require 'monitoring/prometheus'
 require 'monitoring/middleware/conjur_collector'
 require 'monitoring/middleware/prometheus_exporter'
-require 'monitoring/prometheus'
 
 describe Monitoring::Middleware::ConjurCollector do
   include Rack::Test::Methods
@@ -11,18 +11,16 @@ describe Monitoring::Middleware::ConjurCollector do
     Monitoring::Prometheus.setup(registry: Prometheus::Client::Registry.new)
   end
 
-  let(:registry) do
-    Monitoring::Prometheus.registry
-  end
-
-  let(:collector_options) {{ registry: registry, pubsub: Monitoring::PubSub }}
-  let(:exporter_options) {{ registry: registry, path: '/metrics' }}
+  let(:registry) { Monitoring::Prometheus.registry }
+  let(:metric) { :collector_test_metric }
+  let(:labels) { { path: '/foo', code: 200 } }
+  let(:exporter_options) { { registry: registry, path: '/metrics' } }
 
   let(:app) do
     app = ->(_) { [200, { 'Content-Type' => 'text/html' }, ['OK']] }
 
     # Wrap the mock app with the Collector and Exporter middleware
-    app_with_collector = described_class.new(app, **collector_options)
+    app_with_collector = described_class.new(app)
     Monitoring::Middleware::PrometheusExporter.new(app_with_collector, **exporter_options)
   end
 
@@ -35,8 +33,6 @@ describe Monitoring::Middleware::ConjurCollector do
   it 'metrics from traced requests update the global registry' do
     get '/foo'
 
-    metric = :collector_test_metric
-    labels = { path: '/foo', code: 200 }
     expect(registry.get(metric).get(labels: labels)).to eql(1.0)
   end
 
@@ -47,6 +43,7 @@ describe Monitoring::Middleware::ConjurCollector do
     get '/metrics'
 
     expect(last_response.status).to eql(200)
+    expect(registry.get(metric).get(labels: labels)).to eql(1.0)
     expect(last_response.body).to eql(text.marshal(registry))
   end
 end
